@@ -1,14 +1,14 @@
 package net.seanomik.tamablefoxes.versions.version_1_21_11_R1;
 
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.animal.Fox;
+import net.minecraft.world.entity.animal.fox.Fox;
 import net.seanomik.tamablefoxes.util.NMSInterface;
 import net.seanomik.tamablefoxes.util.io.Config;
 import net.seanomik.tamablefoxes.util.io.LanguageConfig;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_21_R6.entity.CraftEntity;
+import org.bukkit.craftbukkit.v1_21_R7.entity.CraftEntity;
 import org.bukkit.entity.Player;
 
 import java.lang.reflect.Field;

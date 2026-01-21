@@ -13,7 +13,7 @@ import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
 import net.seanomik.tamablefoxes.versions.version_1_21_11_R1.EntityTamableFox;
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_21_R6.entity.CraftEntity;
+import org.bukkit.craftbukkit.v1_21_R7.entity.CraftEntity;
 import org.bukkit.event.entity.EntityTeleportEvent;
 
 import java.util.EnumSet;
