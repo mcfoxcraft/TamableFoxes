@@ -41,6 +41,7 @@
         <module>1_21_R4</module>
         <module>1_21_R7</module>
         <module>1_21_R9</module>
+        <module>1_21_R10</module>
     </modules>
 
     <properties>

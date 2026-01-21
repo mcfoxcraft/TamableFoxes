@@ -24,6 +24,7 @@ import net.seanomik.tamablefoxes.versions.version_1_19_R3.NMSInterface_1_19_4_R1
 import net.seanomik.tamablefoxes.versions.version_1_20_R1.NMSInterface_1_20_R1;
 import net.seanomik.tamablefoxes.versions.version_1_20_R3.NMSInterface_1_20_R3;
 import net.seanomik.tamablefoxes.versions.version_1_21_10_R1.NMSInterface_1_21_10_R1;
+import net.seanomik.tamablefoxes.versions.version_1_21_11_R1.NMSInterface_1_21_11_R1;
 import net.seanomik.tamablefoxes.versions.version_1_21_R1.NMSInterface_1_21_R1;
 import org.bukkit.*;
 import org.bukkit.event.Listener;
@@ -81,6 +82,7 @@ public final class TamableFoxes extends JavaPlugin implements Listener {
             case "1.21.5" -> nmsInterface = new NMSInterface_1_21_5_R1();
             case "1.21.8" -> nmsInterface = new NMSInterface_1_21_8_R1();
             case "1.21.9", "1.21.10" -> nmsInterface = new NMSInterface_1_21_10_R1();
+            case "1.21.11" -> nmsInterface = new NMSInterface_1_21_11_R1();
 
             default -> {
                 Bukkit.getServer().getConsoleSender().sendMessage(Config.getPrefix() + ChatColor.RED + LanguageConfig.getUnsupportedMCVersionRegister());
