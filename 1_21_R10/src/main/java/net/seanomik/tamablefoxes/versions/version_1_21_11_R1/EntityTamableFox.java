@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -32,6 +33,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.*;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
@@ -87,6 +89,38 @@ public class EntityTamableFox extends Fox {
         this.setTamed(false);
     }
 
+    /**
+     * Ensures the Fox superclass target goal fields are initialized via reflection.
+     * These fields (landTargetGoal, turtleEggTargetGoal, fishTargetGoal) are normally
+     * set in registerGoals(), but that method only runs when the Level is a ServerLevel.
+     * When foxes are loaded from world data or spawned by plugins, these fields can be
+     * null, causing NPE in Fox.setTargetGoals().
+     */
+    private void ensureTargetGoalFields() {
+        try {
+            Field landField = this.getClass().getSuperclass().getDeclaredField("landTargetGoal");
+            landField.setAccessible(true);
+            if (landField.get(this) != null) return; // Already initialized by registerGoals()
+
+            // Initialize all three fields using the same logic as registerGoals()
+            landField.set(this, new NearestAttackableTargetGoal<>(this, Animal.class, 10, false, false, (entityliving, level) -> {
+                return (!isTamed() || (Config.doesTamedAttackWildAnimals() && isTamed())) && (entityliving instanceof Chicken || entityliving instanceof Rabbit);
+            }));
+
+            Field turtleField = this.getClass().getSuperclass().getDeclaredField("turtleEggTargetGoal");
+            turtleField.setAccessible(true);
+            turtleField.set(this, new NearestAttackableTargetGoal<>(this, Turtle.class, 10, false, false, Turtle.BABY_ON_LAND_SELECTOR));
+
+            Field fishField = this.getClass().getSuperclass().getDeclaredField("fishTargetGoal");
+            fishField.setAccessible(true);
+            fishField.set(this, new NearestAttackableTargetGoal<>(this, AbstractFish.class, 20, false, false, (entityliving, level) -> {
+                return (!isTamed() || (Config.doesTamedAttackWildAnimals() && isTamed())) && entityliving instanceof AbstractSchoolingFish;
+            }));
+        } catch (ReflectiveOperationException e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     public void registerGoals() {
         try {
@@ -95,21 +129,20 @@ public class EntityTamableFox extends Fox {
             this.goalSleepWhenOrdered = new FoxPathfinderGoalSleepWhenOrdered(this);
             this.goalSelector.addGoal(1, goalSleepWhenOrdered);
 
-            // For reflection, we must use the non remapped names, since this is done at runtime
-            // and the user will be using a normal spigot jar.
-
-            // Wild animal attacking
-            Field landTargetGoal = this.getClass().getSuperclass().getDeclaredField("landTargetGoal"); // landTargetGoal
+            // Set the Fox target goal fields via reflection. These are used by
+            // the vanilla Fox.setTargetGoals() private method. We use the same
+            // field lookup pattern (this.getClass().getSuperclass()) as before.
+            Field landTargetGoal = this.getClass().getSuperclass().getDeclaredField("landTargetGoal");
             landTargetGoal.setAccessible(true);
             landTargetGoal.set(this, new NearestAttackableTargetGoal(this, Animal.class, 10, false, false, (entityliving, level) -> {
                 return (!isTamed() || (Config.doesTamedAttackWildAnimals() && isTamed())) && (entityliving instanceof Chicken || entityliving instanceof Rabbit);
             }));
 
-            Field turtleEggTargetGoal = this.getClass().getSuperclass().getDeclaredField("turtleEggTargetGoal"); // turtleEggTargetGoal
+            Field turtleEggTargetGoal = this.getClass().getSuperclass().getDeclaredField("turtleEggTargetGoal");
             turtleEggTargetGoal.setAccessible(true);
             turtleEggTargetGoal.set(this, new NearestAttackableTargetGoal(this, Turtle.class, 10, false, false, Turtle.BABY_ON_LAND_SELECTOR));
 
-            Field fishTargetGoal = this.getClass().getSuperclass().getDeclaredField("fishTargetGoal"); // fishTargetGoal
+            Field fishTargetGoal = this.getClass().getSuperclass().getDeclaredField("fishTargetGoal");
             fishTargetGoal.setAccessible(true);
             fishTargetGoal.set(this, new NearestAttackableTargetGoal(this, AbstractFish.class, 20, false, false, (entityliving, level) -> {
                 return (!isTamed() || (Config.doesTamedAttackWildAnimals() && isTamed())) && entityliving instanceof AbstractSchoolingFish;
@@ -231,7 +264,14 @@ public class EntityTamableFox extends Fox {
     }
 
     @Override
+    public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty, EntitySpawnReason reason, @Nullable SpawnGroupData spawnGroupData) {
+        ensureTargetGoalFields();
+        return super.finalizeSpawn(level, difficulty, reason, spawnGroupData);
+    }
+
+    @Override
     protected void readAdditionalSaveData(ValueInput valueinput) {
+        ensureTargetGoalFields();
         super.readAdditionalSaveData(valueinput);
         UUID ownerUuid = null;
 
