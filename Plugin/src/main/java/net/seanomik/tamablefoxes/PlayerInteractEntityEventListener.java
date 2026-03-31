@@ -12,13 +12,16 @@ import java.util.UUID;
 public class PlayerInteractEntityEventListener implements Listener {
     public static class SynchronizeFoxObject {
         Fox interactedFox;
+        volatile boolean foxSet;
 
         SynchronizeFoxObject() {
             interactedFox = null;
+            foxSet = false;
         }
 
         SynchronizeFoxObject(Fox fox) {
             this.interactedFox = fox;
+            this.foxSet = true;
         }
     }
 
@@ -36,6 +39,7 @@ public class PlayerInteractEntityEventListener implements Listener {
             SynchronizeFoxObject syncObject = players.get(event.getPlayer().getUniqueId());
             synchronized (syncObject) {
                 syncObject.interactedFox = (Fox) event.getRightClicked();
+                syncObject.foxSet = true;
                 syncObject.notify();
             }
         }

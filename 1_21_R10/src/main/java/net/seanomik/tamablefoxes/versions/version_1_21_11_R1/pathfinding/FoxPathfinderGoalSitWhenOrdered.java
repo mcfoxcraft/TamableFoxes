@@ -37,7 +37,7 @@ public class FoxPathfinderGoalSitWhenOrdered extends Goal {
 
     public void start() {
         // For some reason it needs to be ran later to not have the fox slide across the floor.
-        Bukkit.getScheduler().runTaskLater(Utils.tamableFoxesPlugin, () -> {
+        Bukkit.getScheduler().runTaskLater(Utils.getTamableFoxesPlugin(), () -> {
             this.mob.getNavigation().stop();
             this.mob.setSitting(true);
             this.orderedToSit = true;

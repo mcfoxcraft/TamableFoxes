@@ -64,7 +64,21 @@ public class CommandGiveFox implements TabExecutor {
 
             synchronized(syncObject) {
                 try {
-                    syncObject.wait();
+                    // Use while loop to avoid spurious wakeups and race conditions
+                    long startTime = System.currentTimeMillis();
+                    long timeout = 30000; // 30 seconds
+                    while (!syncObject.foxSet) {
+                        long elapsed = System.currentTimeMillis() - startTime;
+                        long remaining = timeout - elapsed;
+                        if (remaining <= 0) {
+                            // Timeout occurred
+                            playerInteractListener.players.remove(player.getUniqueId());
+                            sender.sendMessage(Config.getPrefix() + ChatColor.RED + LanguageConfig.getTooLongInteraction());
+                            return;
+                        }
+                        syncObject.wait(remaining);
+                    }
+
                     playerInteractListener.players.remove(player.getUniqueId());
 
                     Fox fox = syncObject.interactedFox;
@@ -88,6 +102,7 @@ public class CommandGiveFox implements TabExecutor {
                         sender.sendMessage(Config.getPrefix() + ChatColor.RED + LanguageConfig.getNotYourFox());
                     }
                 } catch (InterruptedException e) {
+                    playerInteractListener.players.remove(player.getUniqueId());
                     sender.sendMessage(Config.getPrefix() + ChatColor.RED + LanguageConfig.getTooLongInteraction());
                 }
             }

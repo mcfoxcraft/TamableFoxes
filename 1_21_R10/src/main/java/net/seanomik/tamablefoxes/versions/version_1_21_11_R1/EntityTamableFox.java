@@ -90,6 +90,31 @@ public class EntityTamableFox extends Fox {
     }
 
     /**
+     * Factory method to create the land animal target goal.
+     */
+    private NearestAttackableTargetGoal<Animal> createLandTargetGoal() {
+        return new NearestAttackableTargetGoal<>(this, Animal.class, 10, false, false, (entityliving, level) -> {
+            return (!isTamed() || (Config.doesTamedAttackWildAnimals() && isTamed())) && (entityliving instanceof Chicken || entityliving instanceof Rabbit);
+        });
+    }
+
+    /**
+     * Factory method to create the turtle target goal.
+     */
+    private NearestAttackableTargetGoal<Turtle> createTurtleTargetGoal() {
+        return new NearestAttackableTargetGoal<>(this, Turtle.class, 10, false, false, Turtle.BABY_ON_LAND_SELECTOR);
+    }
+
+    /**
+     * Factory method to create the fish target goal.
+     */
+    private NearestAttackableTargetGoal<AbstractFish> createFishTargetGoal() {
+        return new NearestAttackableTargetGoal<>(this, AbstractFish.class, 20, false, false, (entityliving, level) -> {
+            return (!isTamed() || (Config.doesTamedAttackWildAnimals() && isTamed())) && entityliving instanceof AbstractSchoolingFish;
+        });
+    }
+
+    /**
      * Ensures the Fox superclass target goal fields are initialized via reflection.
      * These fields (landTargetGoal, turtleEggTargetGoal, fishTargetGoal) are normally
      * set in registerGoals(), but that method only runs when the Level is a ServerLevel.
@@ -102,20 +127,16 @@ public class EntityTamableFox extends Fox {
             landField.setAccessible(true);
             if (landField.get(this) != null) return; // Already initialized by registerGoals()
 
-            // Initialize all three fields using the same logic as registerGoals()
-            landField.set(this, new NearestAttackableTargetGoal<>(this, Animal.class, 10, false, false, (entityliving, level) -> {
-                return (!isTamed() || (Config.doesTamedAttackWildAnimals() && isTamed())) && (entityliving instanceof Chicken || entityliving instanceof Rabbit);
-            }));
+            // Initialize all three fields using the same factory methods as registerGoals()
+            landField.set(this, createLandTargetGoal());
 
             Field turtleField = this.getClass().getSuperclass().getDeclaredField("turtleEggTargetGoal");
             turtleField.setAccessible(true);
-            turtleField.set(this, new NearestAttackableTargetGoal<>(this, Turtle.class, 10, false, false, Turtle.BABY_ON_LAND_SELECTOR));
+            turtleField.set(this, createTurtleTargetGoal());
 
             Field fishField = this.getClass().getSuperclass().getDeclaredField("fishTargetGoal");
             fishField.setAccessible(true);
-            fishField.set(this, new NearestAttackableTargetGoal<>(this, AbstractFish.class, 20, false, false, (entityliving, level) -> {
-                return (!isTamed() || (Config.doesTamedAttackWildAnimals() && isTamed())) && entityliving instanceof AbstractSchoolingFish;
-            }));
+            fishField.set(this, createFishTargetGoal());
         } catch (ReflectiveOperationException e) {
             e.printStackTrace();
         }
@@ -134,19 +155,15 @@ public class EntityTamableFox extends Fox {
             // field lookup pattern (this.getClass().getSuperclass()) as before.
             Field landTargetGoal = this.getClass().getSuperclass().getDeclaredField("landTargetGoal");
             landTargetGoal.setAccessible(true);
-            landTargetGoal.set(this, new NearestAttackableTargetGoal(this, Animal.class, 10, false, false, (entityliving, level) -> {
-                return (!isTamed() || (Config.doesTamedAttackWildAnimals() && isTamed())) && (entityliving instanceof Chicken || entityliving instanceof Rabbit);
-            }));
+            landTargetGoal.set(this, createLandTargetGoal());
 
             Field turtleEggTargetGoal = this.getClass().getSuperclass().getDeclaredField("turtleEggTargetGoal");
             turtleEggTargetGoal.setAccessible(true);
-            turtleEggTargetGoal.set(this, new NearestAttackableTargetGoal(this, Turtle.class, 10, false, false, Turtle.BABY_ON_LAND_SELECTOR));
+            turtleEggTargetGoal.set(this, createTurtleTargetGoal());
 
             Field fishTargetGoal = this.getClass().getSuperclass().getDeclaredField("fishTargetGoal");
             fishTargetGoal.setAccessible(true);
-            fishTargetGoal.set(this, new NearestAttackableTargetGoal(this, AbstractFish.class, 20, false, false, (entityliving, level) -> {
-                return (!isTamed() || (Config.doesTamedAttackWildAnimals() && isTamed())) && entityliving instanceof AbstractSchoolingFish;
-            }));
+            fishTargetGoal.set(this, createFishTargetGoal());
 
             this.goalSelector.addGoal(0, getFoxInnerPathfinderGoal("FoxFloatGoal"));
             this.goalSelector.addGoal(1, getFoxInnerPathfinderGoal("FaceplantGoal"));
@@ -154,13 +171,13 @@ public class EntityTamableFox extends Fox {
             this.goalSelector.addGoal(2, new FoxPathfinderGoalSleepWithOwner(this));
             this.goalSelector.addGoal(3, getFoxInnerPathfinderGoal("FoxBreedGoal", Arrays.asList(1.0D), Arrays.asList(double.class)));
 
-            this.goalSelector.addGoal(4, new AvoidEntityGoal(this, Player.class, 16.0F, 1.6D, 1.4D, (entityliving) -> {
+            this.goalSelector.addGoal(4, new AvoidEntityGoal<>(this, Player.class, 16.0F, 1.6D, 1.4D, (entityliving) -> {
                 return !isTamed() && AVOID_PLAYERS.test((LivingEntity) entityliving) && !this.isDefending();
             }));
-            this.goalSelector.addGoal(4, new AvoidEntityGoal(this, Wolf.class, 8.0F, 1.6D, 1.4D, (entityliving) -> {
+            this.goalSelector.addGoal(4, new AvoidEntityGoal<>(this, Wolf.class, 8.0F, 1.6D, 1.4D, (entityliving) -> {
                 return !((Wolf)entityliving).isTame() && !this.isDefending();
             }));
-            this.goalSelector.addGoal(4, new AvoidEntityGoal(this, PolarBear.class, 8.0F, 1.6D, 1.4D, (entityliving) -> {
+            this.goalSelector.addGoal(4, new AvoidEntityGoal<>(this, PolarBear.class, 8.0F, 1.6D, 1.4D, (entityliving) -> {
                 return !this.isDefending();
             }));
 
@@ -203,6 +220,7 @@ public class EntityTamableFox extends Fox {
             this.goalSelector.addGoal(9, strollThroughVillage);
             untamedGoals.add(strollThroughVillage);
         } catch (Exception e) {
+            Bukkit.getLogger().severe("[TamableFoxes] Failed to register goals for EntityTamableFox: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -362,7 +380,7 @@ public class EntityTamableFox extends Fox {
                     })
                     .text("Fox name")
                     .title("Name your new friend!")
-                    .plugin(Utils.tamableFoxesPlugin)
+                    .plugin(Utils.getTamableFoxesPlugin())
                     .open(player);
         } catch (Throwable throwable) {
             throwable.printStackTrace();
@@ -433,7 +451,7 @@ public class EntityTamableFox extends Fox {
 
                     // Run this task async to make sure to not slow the server down.
                     // This is needed due to the item being removed as soon as its put in the foxes mouth.
-                    Bukkit.getScheduler().runTaskLaterAsynchronously(Utils.tamableFoxesPlugin, ()-> {
+                    Bukkit.getScheduler().runTaskLaterAsynchronously(Utils.getTamableFoxesPlugin(), ()-> {
                         // Put item in mouth
                         if (entityhuman.hasItemInSlot(EquipmentSlot.MAINHAND)) {
                             ItemStack c = itemstack.copy();
@@ -461,7 +479,7 @@ public class EntityTamableFox extends Fox {
                     itemstack.shrink(1);
                 }
 
-                SQLiteHelper sqLiteHelper = SQLiteHelper.getInstance(Utils.tamableFoxesPlugin);
+                SQLiteHelper sqLiteHelper = SQLiteHelper.getInstance(Utils.getTamableFoxesPlugin());
                 int maxTameCount = Config.getMaxPlayerFoxTames();
                 if (!((org.bukkit.entity.Player) entityhuman.getBukkitEntity()).hasPermission("tamablefoxes.tame.unlimited") && maxTameCount > 0 && sqLiteHelper.getPlayerFoxAmount(entityhuman.getUUID()) >= maxTameCount) {
                     if (!LanguageConfig.getFoxDoesntTrust().equalsIgnoreCase("disabled")) {
@@ -621,7 +639,7 @@ public class EntityTamableFox extends Fox {
 
         // Remove the amount of foxes the player has tamed if the limit is enabled.
         if (Config.getMaxPlayerFoxTames() > 0 && this.getOwner() != null) {
-            SQLiteHelper sqliteHelper = SQLiteHelper.getInstance(Utils.tamableFoxesPlugin);
+            SQLiteHelper sqliteHelper = SQLiteHelper.getInstance(Utils.getTamableFoxesPlugin());
             sqliteHelper.removePlayerFoxAmount(this.getOwner().getUUID(), 1);
         }
 

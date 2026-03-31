@@ -11,7 +11,19 @@ public class Utils {
     public static String getPrefix() {
         return ChatColor.RED + "[Tamable Foxes] ";
     }
-    public static Plugin tamableFoxesPlugin;
+
+    private static Plugin tamableFoxesPlugin;
+
+    public static Plugin getTamableFoxesPlugin() {
+        if (tamableFoxesPlugin == null) {
+            throw new IllegalStateException("TamableFoxes plugin instance is not initialized");
+        }
+        return tamableFoxesPlugin;
+    }
+
+    public static void setTamableFoxesPlugin(Plugin plugin) {
+        tamableFoxesPlugin = plugin;
+    }
 
     public static Class<?> getPrivateInnerClass(Class outer, String innerName) {
         for (Class<?> declaredClass : outer.getDeclaredClasses()) {
@@ -47,8 +59,7 @@ public class Utils {
 
             return instantiatedClass;
         } catch (Exception e) {
-            e.printStackTrace();
-            return null;
+            throw new RuntimeException("Failed to instantiate private inner class " + innerName + " of " + outer.getName(), e);
         }
     }
 

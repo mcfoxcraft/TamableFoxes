@@ -40,7 +40,7 @@ public class FoxPathfinderGoalSit extends PathfinderGoal {
         this.entity.setGoalTarget(null);
 
         // For some reason it needs to be ran later.
-        Bukkit.getScheduler().runTaskLater(Utils.tamableFoxesPlugin, () -> {
+        Bukkit.getScheduler().runTaskLater(Utils.getTamableFoxesPlugin(), () -> {
             this.entity.setSitting(true);
         }, 1L);
     }

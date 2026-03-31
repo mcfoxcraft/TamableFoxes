@@ -5,6 +5,7 @@ import org.bukkit.plugin.Plugin;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 public class SQLiteHandler {
 	private Connection connection;
@@ -19,43 +20,57 @@ public class SQLiteHandler {
 		return instance;
 	}
 
-	public void connect(Plugin plugin) {
+	public synchronized void connect(Plugin plugin) {
 		String pluginFolder = plugin.getDataFolder().getAbsolutePath();
 		connect(pluginFolder);
 	}
 
-	public void connect(String pluginFolder) {
+	public synchronized void connect(String pluginFolder) {
 		try {
+			// Reuse existing connection if it's still valid
+			if (connection != null && !connection.isClosed()) {
+				return;
+			}
+
 			String url = "jdbc:sqlite:" + pluginFolder + "/userFoxAmount.db";
 			connection = DriverManager.getConnection(url);
 
+			// Enable WAL mode for better concurrency
+			try (Statement stmt = connection.createStatement()) {
+				stmt.execute("PRAGMA journal_mode=WAL;");
+			}
+
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
 	}
 
-	public Connection getConnection() {
+	public synchronized Connection getConnection() {
 		return connection;
 	}
 
-	public void closeConnection() {
+	public synchronized void closeConnection() {
 		try {
-			connection.close();
+			if (connection != null && !connection.isClosed()) {
+				connection.close();
+			}
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
 	}
 
-	public void newConnection(String pluginFolder) {
+	public synchronized void newConnection(String pluginFolder) {
 		try {
-			connection.close();
+			if (connection != null && !connection.isClosed()) {
+				connection.close();
+			}
 			connect(pluginFolder);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
 	}
 
-	public void setConnection(Connection connection) {
+	public synchronized void setConnection(Connection connection) {
 		this.connection = connection;
 	}
 }

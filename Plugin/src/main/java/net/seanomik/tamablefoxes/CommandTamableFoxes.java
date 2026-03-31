@@ -43,10 +43,10 @@ public class CommandTamableFoxes implements TabExecutor {
                     player.sendMessage(Config.getPrefix() + ChatColor.GREEN + LanguageConfig.getReloadMessage());
                     break;
                 default:
-                    player.sendMessage(ChatColor.RED + "/tamablefox " + ChatColor.GRAY + "[red | snow | reload]");
+                    player.sendMessage(ChatColor.RED + "/tamablefox " + ChatColor.GRAY + "[reload]");
             }
         } else {
-            player.sendMessage(ChatColor.RED + "/tamablefox " + ChatColor.GRAY + "[red | snow | reload]");
+            player.sendMessage(ChatColor.RED + "/tamablefox " + ChatColor.GRAY + "[reload]");
         }
 
         return true;

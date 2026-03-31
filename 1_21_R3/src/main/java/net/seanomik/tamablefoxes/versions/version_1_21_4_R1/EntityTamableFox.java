@@ -346,7 +346,7 @@ public class EntityTamableFox extends Fox {
                     })
                     .text("Fox name")
                     .title("Name your new friend!")
-                    .plugin(Utils.tamableFoxesPlugin)
+                    .plugin(Utils.getTamableFoxesPlugin())
                     .open(player);
         } catch (Throwable throwable) {
             throwable.printStackTrace();
@@ -417,7 +417,7 @@ public class EntityTamableFox extends Fox {
 
                     // Run this task async to make sure to not slow the server down.
                     // This is needed due to the item being removed as soon as its put in the foxes mouth.
-                    Bukkit.getScheduler().runTaskLaterAsynchronously(Utils.tamableFoxesPlugin, ()-> {
+                    Bukkit.getScheduler().runTaskLaterAsynchronously(Utils.getTamableFoxesPlugin(), ()-> {
                         // Put item in mouth
                         if (entityhuman.hasItemInSlot(EquipmentSlot.MAINHAND)) {
                             ItemStack c = itemstack.copy();
@@ -445,7 +445,7 @@ public class EntityTamableFox extends Fox {
                     itemstack.shrink(1);
                 }
 
-                SQLiteHelper sqLiteHelper = SQLiteHelper.getInstance(Utils.tamableFoxesPlugin);
+                SQLiteHelper sqLiteHelper = SQLiteHelper.getInstance(Utils.getTamableFoxesPlugin());
                 int maxTameCount = Config.getMaxPlayerFoxTames();
                 if (!((org.bukkit.entity.Player) entityhuman.getBukkitEntity()).hasPermission("tamablefoxes.tame.unlimited") && maxTameCount > 0 && sqLiteHelper.getPlayerFoxAmount(entityhuman.getUUID()) >= maxTameCount) {
                     if (!LanguageConfig.getFoxDoesntTrust().equalsIgnoreCase("disabled")) {
@@ -605,7 +605,7 @@ public class EntityTamableFox extends Fox {
 
         // Remove the amount of foxes the player has tamed if the limit is enabled.
         if (Config.getMaxPlayerFoxTames() > 0 && this.getOwner() != null) {
-            SQLiteHelper sqliteHelper = SQLiteHelper.getInstance(Utils.tamableFoxesPlugin);
+            SQLiteHelper sqliteHelper = SQLiteHelper.getInstance(Utils.getTamableFoxesPlugin());
             sqliteHelper.removePlayerFoxAmount(this.getOwner().getUUID(), 1);
         }
 

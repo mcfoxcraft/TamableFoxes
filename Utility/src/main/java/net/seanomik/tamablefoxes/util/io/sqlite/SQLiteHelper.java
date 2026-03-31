@@ -25,7 +25,7 @@ public class SQLiteHelper {
         return instance;
     }
 
-    public void createTablesIfNotExist() {
+    public synchronized void createTablesIfNotExist() {
         sqLiteHandler = SQLiteHandler.getInstance();
 
         String userFoxAmountQuery =
@@ -39,53 +39,39 @@ public class SQLiteHelper {
             DatabaseMetaData dbm = sqLiteHandler.getConnection().getMetaData();
             ResultSet tables = dbm.getTables(null, null, userAmountTableName, null);
             if (!tables.next()) {
-                PreparedStatement statement = sqLiteHandler.getConnection().prepareStatement(userFoxAmountQuery);
-                statement.executeUpdate();
+                try (PreparedStatement statement = sqLiteHandler.getConnection().prepareStatement(userFoxAmountQuery)) {
+                    statement.executeUpdate();
+                }
 
                 plugin.getServer().getConsoleSender().sendMessage(Config.getPrefix() + "Created previous player bans table!");
             }
         } catch (SQLException e) {
             e.printStackTrace();
-        } finally {
-            if (sqLiteHandler.getConnection() != null) {
-                try {
-                    sqLiteHandler.getConnection().close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
         }
     }
 
-    public int getPlayerFoxAmount(UUID uuid) {
+    public synchronized int getPlayerFoxAmount(UUID uuid) {
         sqLiteHandler = SQLiteHandler.getInstance();
 
         try {
             sqLiteHandler.connect(plugin);
-            PreparedStatement statement = sqLiteHandler.getConnection()
-                    .prepareStatement("SELECT * FROM " + userAmountTableName + " WHERE UUID=?");
-            statement.setString(1, uuid.toString());
-            ResultSet results = statement.executeQuery();
-
-            if (results.next()) {
-                return results.getInt("AMOUNT");
+            try (PreparedStatement statement = sqLiteHandler.getConnection()
+                    .prepareStatement("SELECT * FROM " + userAmountTableName + " WHERE UUID=?")) {
+                statement.setString(1, uuid.toString());
+                try (ResultSet results = statement.executeQuery()) {
+                    if (results.next()) {
+                        return results.getInt("AMOUNT");
+                    }
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
-        } finally {
-            if (sqLiteHandler.getConnection() != null) {
-                try {
-                    sqLiteHandler.getConnection().close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
         }
 
         return -1;
     }
 
-    public void addPlayerFoxAmount(UUID uuid, int amt) {
+    public synchronized void addPlayerFoxAmount(UUID uuid, int amt) {
         sqLiteHandler = SQLiteHandler.getInstance();
 
         try {
@@ -95,42 +81,26 @@ public class SQLiteHelper {
             }
 
             sqLiteHandler.connect(plugin);
-            PreparedStatement statement = sqLiteHandler.getConnection().prepareStatement(query);
-
-            statement.executeUpdate();
+            try (PreparedStatement statement = sqLiteHandler.getConnection().prepareStatement(query)) {
+                statement.executeUpdate();
+            }
         } catch (SQLException e) {
             e.printStackTrace();
-        } finally {
-            if (sqLiteHandler.getConnection() != null) {
-                try {
-                    sqLiteHandler.getConnection().close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
         }
     }
 
-    public void removePlayerFoxAmount(UUID uuid, int amt) {
+    public synchronized void removePlayerFoxAmount(UUID uuid, int amt) {
         sqLiteHandler = SQLiteHandler.getInstance();
 
         try {
             String query = "UPDATE " + userAmountTableName + " SET AMOUNT = AMOUNT - " + amt + " WHERE UUID = '" + uuid.toString() + "'";
 
             sqLiteHandler.connect(plugin);
-            PreparedStatement statement = sqLiteHandler.getConnection().prepareStatement(query);
-
-            statement.executeUpdate();
+            try (PreparedStatement statement = sqLiteHandler.getConnection().prepareStatement(query)) {
+                statement.executeUpdate();
+            }
         } catch (SQLException e) {
             e.printStackTrace();
-        } finally {
-            if (sqLiteHandler.getConnection() != null) {
-                try {
-                    sqLiteHandler.getConnection().close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
         }
     }
 }
