@@ -37,13 +37,14 @@ public class SQLiteHelper {
             sqLiteHandler.connect(plugin);
             // Create previous bans table
             DatabaseMetaData dbm = sqLiteHandler.getConnection().getMetaData();
-            ResultSet tables = dbm.getTables(null, null, userAmountTableName, null);
-            if (!tables.next()) {
-                try (PreparedStatement statement = sqLiteHandler.getConnection().prepareStatement(userFoxAmountQuery)) {
-                    statement.executeUpdate();
-                }
+            try (ResultSet tables = dbm.getTables(null, null, userAmountTableName, null)) {
+                if (!tables.next()) {
+                    try (PreparedStatement statement = sqLiteHandler.getConnection().prepareStatement(userFoxAmountQuery)) {
+                        statement.executeUpdate();
+                    }
 
-                plugin.getServer().getConsoleSender().sendMessage(Config.getPrefix() + "Created previous player bans table!");
+                    plugin.getServer().getConsoleSender().sendMessage(Config.getPrefix() + "Created previous player bans table!");
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
