@@ -3,6 +3,7 @@ package net.seanomik.tamablefoxes;
 import net.seanomik.tamablefoxes.util.NMSInterface;
 import net.seanomik.tamablefoxes.util.Utils;
 import net.seanomik.tamablefoxes.util.io.Config;
+import net.seanomik.tamablefoxes.util.io.sqlite.SQLiteHandler;
 import net.seanomik.tamablefoxes.util.io.sqlite.SQLiteHelper;
 import net.seanomik.tamablefoxes.versions.version_1_14_R1.NMSInterface_1_14_R1;
 import net.seanomik.tamablefoxes.versions.version_1_15_R1.NMSInterface_1_15_R1;
@@ -163,6 +164,7 @@ public final class TamableFoxes extends JavaPlugin implements Listener {
     @Override
     public void onDisable() {
         getServer().getConsoleSender().sendMessage(Config.getPrefix() + ChatColor.YELLOW + LanguageConfig.getSavingFoxMessage());
+        SQLiteHandler.getInstance().closeConnection();
     }
 
     public static TamableFoxes getPlugin() {

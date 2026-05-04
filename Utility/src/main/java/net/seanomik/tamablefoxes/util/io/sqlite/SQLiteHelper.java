@@ -8,6 +8,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.logging.Level;
 
 public class SQLiteHelper {
     public static Plugin plugin;
@@ -47,7 +48,7 @@ public class SQLiteHelper {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            plugin.getLogger().log(Level.SEVERE, "Failed to create user fox amount table", e);
         }
     }
 
@@ -66,7 +67,7 @@ public class SQLiteHelper {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            plugin.getLogger().log(Level.SEVERE, "Failed to read fox amount for " + uuid, e);
         }
 
         return -1;
@@ -86,7 +87,7 @@ public class SQLiteHelper {
                 statement.executeUpdate();
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            plugin.getLogger().log(Level.SEVERE, "Failed to add fox amount for " + uuid, e);
         }
     }
 
@@ -101,7 +102,7 @@ public class SQLiteHelper {
                 statement.executeUpdate();
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            plugin.getLogger().log(Level.SEVERE, "Failed to remove fox amount for " + uuid, e);
         }
     }
 }
