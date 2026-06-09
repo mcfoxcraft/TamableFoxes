@@ -14,21 +14,36 @@ import java.util.UUID;
 public class NMSUtil {
 
     private static final Method SET_MOB_TARGET_METHOD;
+    // FOX: Paper 26.x has setTarget(LivingEntity, TargetReason); genuine Spigot 26.x
+    // only has the 3-arg variant with a trailing fireEvent boolean. Bind whichever
+    // exists so the class initializer cannot crash entity saves/ticks on Spigot.
+    private static final boolean SET_MOB_TARGET_HAS_FIRE_EVENT_ARG;
 
     static {
+        Method setTarget;
+        boolean hasFireEventArg = false;
         try {
-            // For some reason, classes loaded by maven return an old method ending with a boolean parameter
-            // So we use reflection to fix this
-            SET_MOB_TARGET_METHOD = Mob.class.getMethod("setTarget", LivingEntity.class, EntityTargetEvent.TargetReason.class);
-            SET_MOB_TARGET_METHOD.setAccessible(true);
+            setTarget = Mob.class.getMethod("setTarget", LivingEntity.class, EntityTargetEvent.TargetReason.class);
         } catch (NoSuchMethodException e) {
-            throw new RuntimeException(e);
+            try {
+                setTarget = Mob.class.getMethod("setTarget", LivingEntity.class, EntityTargetEvent.TargetReason.class, boolean.class);
+                hasFireEventArg = true;
+            } catch (NoSuchMethodException e2) {
+                throw new RuntimeException(e2);
+            }
         }
+        setTarget.setAccessible(true);
+        SET_MOB_TARGET_METHOD = setTarget;
+        SET_MOB_TARGET_HAS_FIRE_EVENT_ARG = hasFireEventArg;
     }
 
     public static void setTarget(Mob mob, LivingEntity livingEntity, EntityTargetEvent.TargetReason reason) {
         try {
-            SET_MOB_TARGET_METHOD.invoke(mob, livingEntity, reason);
+            if (SET_MOB_TARGET_HAS_FIRE_EVENT_ARG) {
+                SET_MOB_TARGET_METHOD.invoke(mob, livingEntity, reason, true);
+            } else {
+                SET_MOB_TARGET_METHOD.invoke(mob, livingEntity, reason);
+            }
         } catch (IllegalAccessException | InvocationTargetException e) {
             throw new RuntimeException(e);
         }

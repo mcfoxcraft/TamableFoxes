@@ -130,7 +130,7 @@ public final class TamableFoxes extends JavaPlugin implements Listener {
     private NMSInterface loadNMSInterfaceByName(String className) {
         try {
             return (NMSInterface) Class.forName(className).getDeclaredConstructor().newInstance();
-        } catch (ReflectiveOperationException | LinkageError e) {
+        } catch (Exception | LinkageError e) {
             Bukkit.getServer().getConsoleSender().sendMessage(Config.getPrefix() + ChatColor.RED + "Failed to load NMS support class " + className + ":");
             e.printStackTrace();
             return null;

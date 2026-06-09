@@ -250,11 +250,15 @@ public class EntityTamableFox extends Fox {
         super.readAdditionalSaveData(compound);
         UUID ownerUuid = null;
 
-        if (compound.contains("OwnerUUID")) {
+        // FOX: addAdditionalSaveData writes "ownerUUID", but this was read back as
+        // "OwnerUUID" (case-sensitive), so tamed state never survived a reload.
+        // Prefer the written key; keep "OwnerUUID" for data saved by pre-1.21.5 modules.
+        String ownerUuidKey = compound.contains("ownerUUID") ? "ownerUUID" : "OwnerUUID";
+        if (compound.contains(ownerUuidKey)) {
             try {
-                ownerUuid = NMSUtil.getUUID(compound, "OwnerUUID");
+                ownerUuid = NMSUtil.getUUID(compound, ownerUuidKey);
             } catch (IllegalArgumentException e) {
-                String uuidStr = compound.getString("OwnerUUID").orElse("");
+                String uuidStr = compound.getString(ownerUuidKey).orElse("");
                 if (!uuidStr.isEmpty()) {
                     ownerUuid = UUID.fromString(uuidStr);
                 } else {

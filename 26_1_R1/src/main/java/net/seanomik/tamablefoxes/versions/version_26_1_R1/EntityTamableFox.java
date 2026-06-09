@@ -354,11 +354,15 @@ public class EntityTamableFox extends Fox {
         }
         UUID ownerUuid = null;
 
-        if (valueinput.getIntArray("OwnerUUID").isPresent()) {
+        // FOX: addAdditionalSaveData writes "ownerUUID", but this was read back as
+        // "OwnerUUID" (case-sensitive), so tamed state never survived a reload.
+        // Prefer the written key; keep "OwnerUUID" for data saved by pre-1.21.5 modules.
+        String ownerUuidKey = valueinput.getIntArray("ownerUUID").isPresent() ? "ownerUUID" : "OwnerUUID";
+        if (valueinput.getIntArray(ownerUuidKey).isPresent()) {
             try {
-                ownerUuid = NMSUtil.getUUID(valueinput, "OwnerUUID");
+                ownerUuid = NMSUtil.getUUID(valueinput, ownerUuidKey);
             } catch (IllegalArgumentException e) {
-                String uuidStr = valueinput.getString("OwnerUUID").orElse("");
+                String uuidStr = valueinput.getString(ownerUuidKey).orElse("");
                 if (!uuidStr.isEmpty()) {
                     ownerUuid = UUID.fromString(uuidStr);
                 } else {
