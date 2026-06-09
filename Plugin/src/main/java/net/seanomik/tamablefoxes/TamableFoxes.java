@@ -79,7 +79,12 @@ public final class TamableFoxes extends JavaPlugin implements Listener {
             case "1.21.5" -> nmsInterface = new NMSInterface_1_21_5_R1();
             case "1.21.8" -> nmsInterface = new NMSInterface_1_21_8_R1();
             case "1.21.9", "1.21.10" -> nmsInterface = new NMSInterface_1_21_10_R1();
-            case "1.21.11", "26.1.2" -> nmsInterface = new NMSInterface_1_21_11_R1();
+            case "1.21.11" -> nmsInterface = new NMSInterface_1_21_11_R1();
+            // FOX: Paper/Spigot 26.x are Mojang-mapped with an unversioned craftbukkit
+            // package, so 26.1.2 needs its own (non-remapped) module. It is loaded via
+            // reflection because its classes target Java 25 (class-file 69) while the
+            // rest of the plugin stays on Java 21 for the older servers.
+            case "26.1.2" -> nmsInterface = loadNMSInterfaceByName("net.seanomik.tamablefoxes.versions.version_26_1_R1.NMSInterface_26_1_R1");
 
             default -> {
                 Bukkit.getServer().getConsoleSender().sendMessage(Config.getPrefix() + ChatColor.RED + LanguageConfig.getUnsupportedMCVersionRegister());
@@ -91,14 +96,44 @@ public final class TamableFoxes extends JavaPlugin implements Listener {
             }
         }
 
+        // FOX: a reflection-loaded interface can fail to load; treat that like an
+        // unsupported version instead of continuing with a null interface.
+        if (versionSupported && nmsInterface == null) {
+            Bukkit.getServer().getConsoleSender().sendMessage(Config.getPrefix() + ChatColor.RED + LanguageConfig.getUnsupportedMCVersionRegister());
+            Bukkit.getServer().getConsoleSender().sendMessage(Config.getPrefix() + "Disabling plugin...");
+            versionSupported = false;
+        }
+
         if (versionSupported) {
             // Display starting message then register entity.
             Bukkit.getServer().getConsoleSender().sendMessage(Config.getPrefix() + ChatColor.YELLOW + LanguageConfig.getMCVersionLoading(Bukkit.getMinecraftVersion()));
-            nmsInterface.registerCustomFoxEntity();
+            try {
+                nmsInterface.registerCustomFoxEntity();
+            } catch (Exception e) {
+                // FOX: newer interfaces rethrow on registration failure so the plugin
+                // disables cleanly instead of running half-enabled with vanilla foxes.
+                e.printStackTrace();
+                Bukkit.getServer().getConsoleSender().sendMessage(Config.getPrefix() + "Disabling plugin...");
+                versionSupported = false;
+                return;
+            }
 
             if (Config.getMaxPlayerFoxTames() != 0) {
                 SQLiteHelper.getInstance(this).createTablesIfNotExist();
             }
+        }
+    }
+
+    // FOX: used for NMS modules whose classes target a newer Java release than the
+    // plugin itself (e.g. 26_1_R1 -> Java 25); a direct "new" reference would make
+    // javac read the newer class file at compile time. Returns null when loading fails.
+    private NMSInterface loadNMSInterfaceByName(String className) {
+        try {
+            return (NMSInterface) Class.forName(className).getDeclaredConstructor().newInstance();
+        } catch (ReflectiveOperationException | LinkageError e) {
+            Bukkit.getServer().getConsoleSender().sendMessage(Config.getPrefix() + ChatColor.RED + "Failed to load NMS support class " + className + ":");
+            e.printStackTrace();
+            return null;
         }
     }
 

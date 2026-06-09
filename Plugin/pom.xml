@@ -81,6 +81,11 @@
             <id>codemc-snapshots-anvilgui</id>
             <url>https://repo.codemc.io/repository/maven-snapshots/</url>
         </repository>
+        <!-- FOX: AnvilGUI's own repo; codemc snapshots stop at 1.10.10 (no 1_21_R7/26_R1 wrappers) -->
+        <repository>
+            <id>mvn-wesjd-net</id>
+            <url>https://mvn.wesjd.net/</url>
+        </repository>
         <!-- FOX: Spigot -> Paper -->
         <repository>
             <id>paper-repo</id>
@@ -236,6 +241,12 @@
             <version>${project.parent.version}</version>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>net.seanomik</groupId>
+            <artifactId>tamablefoxes_v26_1_R1</artifactId>
+            <version>${project.parent.version}</version>
+            <scope>compile</scope>
+        </dependency>
         <!-- End of entity implementations -->
         <dependency>
             <groupId>org.bstats</groupId>
@@ -259,7 +270,7 @@
         <dependency>
             <groupId>net.wesjd</groupId>
             <artifactId>anvilgui</artifactId>
-            <version>1.10.10-SNAPSHOT</version> <!-- FOX -->
+            <version>1.10.13-SNAPSHOT</version> <!-- FOX: adds Wrapper1_21_R7 (1.21.11) and Wrapper26_R1 (26.x) -->
         </dependency>
     </dependencies>
 </project>
