@@ -14,9 +14,11 @@ import java.util.UUID;
 public class NMSUtil {
 
     private static final Method SET_MOB_TARGET_METHOD;
-    // FOX: Paper 26.x has setTarget(LivingEntity, TargetReason); genuine Spigot 26.x
-    // only has the 3-arg variant with a trailing fireEvent boolean. Bind whichever
-    // exists so the class initializer cannot crash entity saves/ticks on Spigot.
+    // FOX: Paper 26.x has setTarget(LivingEntity, TargetReason); the Spigot 26.x jar
+    // this module compiles against only has the 3-arg variant with a trailing
+    // fireEvent boolean. Bind whichever exists so this class initializer can't crash
+    // if the overload set changes. (The plugin itself targets Paper — version
+    // selection uses the Paper-only Bukkit#getMinecraftVersion.)
     private static final boolean SET_MOB_TARGET_HAS_FIRE_EVENT_ARG;
 
     static {

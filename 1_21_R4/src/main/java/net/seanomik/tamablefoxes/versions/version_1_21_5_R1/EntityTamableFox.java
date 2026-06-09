@@ -235,7 +235,11 @@ public class EntityTamableFox extends Fox {
     @Override
     public void addAdditionalSaveData(CompoundTag compound) {
         super.addAdditionalSaveData(compound);
-        if (this.getOwnerUUID() == null) {
+        // FOX: getOwnerUUID() is backed by DATA_TRUSTED_ID_0, which vanilla also
+        // fills for merely *trusting* foxes (e.g. bred babies trust the breeder).
+        // Persist it as the owner only for genuinely tamed foxes, because the read
+        // path promotes any non-zero ownerUUID to tamed.
+        if (this.getOwnerUUID() == null || !this.isTamed()) {
             NMSUtil.putUUID(compound, "ownerUUID", new UUID(0L, 0L));
         } else {
             NMSUtil.putUUID(compound, "ownerUUID", this.getOwnerUUID());
@@ -410,9 +414,10 @@ public class EntityTamableFox extends Fox {
                         this.setDeltaMovement(Vec3.ZERO); // FOX - set velocity to zero
                     }
 
-                    // Run this task async to make sure to not slow the server down.
-                    // This is needed due to the item being removed as soon as its put in the foxes mouth.
-                    Bukkit.getScheduler().runTaskLaterAsynchronously(Utils.getTamableFoxesPlugin(), ()-> {
+                    // Run this a tick later because the item is removed as soon as it is
+                    // put in the fox's mouth. It must stay on the main thread: it reads the
+                    // player's hand and mutates live ItemStacks/equipment. // FOX: was async
+                    Bukkit.getScheduler().runTaskLater(Utils.getTamableFoxesPlugin(), ()-> {
                         // Put item in mouth
                         if (entityhuman.hasItemInSlot(EquipmentSlot.MAINHAND)) {
                             ItemStack c = itemstack.copy();
@@ -492,7 +497,9 @@ public class EntityTamableFox extends Fox {
         entityfox.setVariant(this.getRandom().nextBoolean() ? this.getVariant() : ((Fox)entityageable).getVariant());
 
         UUID uuid = this.getOwnerUUID();
-        if (uuid != null) {
+        // FOX: a wild fox can have a trusted (non-null) UUID without being tamed;
+        // only a genuinely tamed parent passes ownership to the offspring.
+        if (uuid != null && this.isTamed()) {
             entityfox.setOwnerUUID(uuid);
             entityfox.setTamed(true);
         }
