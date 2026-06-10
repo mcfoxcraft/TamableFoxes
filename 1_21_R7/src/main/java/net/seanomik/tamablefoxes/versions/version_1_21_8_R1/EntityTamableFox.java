@@ -237,16 +237,16 @@ public class EntityTamableFox extends Fox {
         super.addAdditionalSaveData(valueoutput);
         // FOX: getOwnerUUID() is backed by DATA_TRUSTED_ID_0, which vanilla also
         // fills for merely *trusting* foxes (e.g. bred babies trust the breeder).
-        // Persist it as the owner only for genuinely tamed foxes, because the read
-        // path promotes any non-zero ownerUUID to tamed.
-        if (this.getOwnerUUID() == null || !this.isTamed()) {
+        // isTamed() already requires a non-zero owner, so persist the owner only for
+        // genuinely tamed foxes; the read path promotes any non-zero ownerUUID to tamed.
+        if (!this.isTamed()) {
             NMSUtil.putUUID(valueoutput, "ownerUUID", new UUID(0L, 0L));
         } else {
             NMSUtil.putUUID(valueoutput, "ownerUUID", this.getOwnerUUID());
         }
         // FOX: explicit tamed marker, so the read path never has to infer tamed state
         // from owner presence for data written by current code.
-        valueoutput.putBoolean("FoxTamed", this.getOwnerUUID() != null && this.isTamed());
+        valueoutput.putBoolean("FoxTamed", this.isTamed());
 
         valueoutput.putBoolean("Sitting", this.goalSitWhenOrdered.isOrderedToSit());
         valueoutput.putBoolean("Sleeping", this.goalSleepWhenOrdered.isOrderedToSleep());
