@@ -1,6 +1,7 @@
 # Don't track content of these folders
 .idea/*
 **/target/**
+.claude/
 
 # Compiled source #
 ###################

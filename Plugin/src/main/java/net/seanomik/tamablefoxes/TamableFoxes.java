@@ -80,14 +80,24 @@ public final class TamableFoxes extends JavaPlugin implements Listener {
             case "1.21.8" -> nmsInterface = new NMSInterface_1_21_8_R1();
             case "1.21.9", "1.21.10" -> nmsInterface = new NMSInterface_1_21_10_R1();
             case "1.21.11" -> nmsInterface = new NMSInterface_1_21_11_R1();
-            // FOX: Paper/Spigot 26.x are Mojang-mapped with an unversioned craftbukkit
-            // package, so 26.1.2 needs its own (non-remapped) module. It is loaded via
-            // reflection so older servers never resolve the module's classes and a
-            // load failure (including LinkageError) disables the plugin cleanly.
-            case "26.1.2" -> nmsInterface = loadNMSInterfaceByName("net.seanomik.tamablefoxes.versions.version_26_1_R1.NMSInterface_26_1_R1");
 
-            default -> abortLoad(LanguageConfig.getUnsupportedMCVersionRegister(),
-                    "You're trying to run MC version " + Bukkit.getMinecraftVersion() + " which is not supported!");
+            // FOX: Paper/Spigot 26.x are Mojang-mapped with an unversioned craftbukkit
+            // package, so the whole 26.1.x patch family (shared 26_1_R1 NMS revision)
+            // uses its own (non-remapped) module. Routing by prefix instead of a single
+            // pinned string means a routine Paper patch bump (26.1.3, ...) doesn't
+            // disable foxes on a version it's actually compatible with. The module is
+            // loaded via reflection so older servers never resolve its classes; if a
+            // future patch ever changes the mapping, registration throws and the loader
+            // fails safe to the same "unsupported version" disable as the default below.
+            default -> {
+                String mcVersion = Bukkit.getMinecraftVersion();
+                if (mcVersion.equals("26.1") || mcVersion.startsWith("26.1.")) {
+                    nmsInterface = loadNMSInterfaceByName("net.seanomik.tamablefoxes.versions.version_26_1_R1.NMSInterface_26_1_R1");
+                } else {
+                    abortLoad(LanguageConfig.getUnsupportedMCVersionRegister(),
+                            "You're trying to run MC version " + mcVersion + " which is not supported!");
+                }
+            }
         }
 
         // FOX: a reflection-loaded interface can fail to load even on a supported
