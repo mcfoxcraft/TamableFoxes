@@ -274,12 +274,20 @@ public class EntityTamableFox extends Fox {
             }
         }
 
-        // FOX: "FoxTamed" is the explicit marker written by current saves. Legacy data
-        // lacks it and wrote ownerUUID unconditionally — vanilla fills the backing
-        // DATA_TRUSTED_ID_0 for wild foxes that merely *trust* a player — so for
-        // legacy data a non-zero owner remains the best available signal and can
-        // wrongly promote a wild trusting fox once; its next save records the real state.
-        if (valueinput.getBooleanOr("FoxTamed", true)
+        // FOX: "FoxTamed" is the explicit tamed marker written by current saves; honor
+        // it whenever present. Legacy saves predate the marker and recorded a non-zero
+        // owner unconditionally — the backing DATA_TRUSTED_ID_0 is also set for wild
+        // foxes that merely *trust* a player — so tamed and trusting are indistinguishable
+        // in that data. Rather than guess, reproduce the behavior of whichever module
+        // wrote it, keyed by which owner key it used:
+        //   - lowercase "ownerUUID": written by the 1.21.5-1.21.11 modules, whose read
+        //     path looked only at uppercase "OwnerUUID", so those foxes loaded UNTAMED.
+        //   - uppercase "OwnerUUID": written by the 1.21-1.21.4 modules, whose read path
+        //     promoted on owner presence, so those foxes loaded TAMED.
+        // New saves always write FoxTamed, so this default only affects legacy data and
+        // the upgrade never newly promotes a wild trusting fox.
+        boolean legacyTamedDefault = ownerUuidKey.equals("OwnerUUID");
+        if (valueinput.getBooleanOr("FoxTamed", legacyTamedDefault)
                 && ownerUuid != null && !ownerUuid.equals(new UUID(0, 0))) {
             this.setOwnerUUID(ownerUuid);
             this.setTamed(true);
