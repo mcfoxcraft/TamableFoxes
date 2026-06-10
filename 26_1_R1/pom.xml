@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>net.seanomik</groupId>
+        <artifactId>tamablefoxes-parent</artifactId>
+        <version>2.3.2-FOX</version>
+    </parent>
+
+    <!-- FOX: Spigot/Paper 26.x run Mojang mappings with an unversioned craftbukkit
+         package and no plugin remapper, so unlike the older modules this one is NOT
+         remapped with specialsource. The BUILD needs JDK 25 (javac must be able to
+         read the class-file v69 server jar), but the module emits Java 21 bytecode
+         (release 21): Paper <= 1.21.4 runs its plugin remapper over the whole shaded
+         jar, and its bundled ASM rejects v69 entries, which would stop the
+         multi-version jar from loading there at all. Requires the BuildTools artifact
+         for rev 26.1.2 in the local repository (see compileSpigotVersions.sh). -->
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration>
+                    <release>21</release>
+                    <compilerArgs>
+                        <arg>-parameters</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <artifactId>tamablefoxes_v26_1_R1</artifactId>
+
+    <repositories>
+        <repository>
+            <id>mvn-wesjd-net</id>
+            <url>https://mvn.wesjd.net/</url>
+        </repository>
+        <repository>
+            <id>spigot-repo</id>
+            <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <dependency>
+            <groupId>net.seanomik</groupId>
+            <artifactId>tamablefoxes-util</artifactId>
+            <version>${project.parent.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot</artifactId>
+            <version>26.1.2-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.wesjd</groupId>
+            <artifactId>anvilgui</artifactId>
+            <version>1.10.13-SNAPSHOT</version> <!-- FOX: first version with Wrapper26_R1 -->
+        </dependency>
+    </dependencies>
+</project>

@@ -1,4 +1,4 @@
-package net.seanomik.tamablefoxes.versions.version_1_21_10_R1;
+package net.seanomik.tamablefoxes.versions.version_26_1_R1;
 
 import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.component.DataComponents;
@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -17,7 +18,14 @@ import net.minecraft.world.entity.ai.goal.LeapAtTargetGoal;
 import net.minecraft.world.entity.ai.goal.RandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.animal.*;
-import net.minecraft.world.entity.animal.horse.AbstractHorse;
+import net.minecraft.world.entity.animal.chicken.Chicken;
+import net.minecraft.world.entity.animal.equine.AbstractHorse;
+import net.minecraft.world.entity.animal.fish.AbstractFish;
+import net.minecraft.world.entity.animal.fish.AbstractSchoolingFish;
+import net.minecraft.world.entity.animal.fox.Fox;
+import net.minecraft.world.entity.animal.polarbear.PolarBear;
+import net.minecraft.world.entity.animal.rabbit.Rabbit;
+import net.minecraft.world.entity.animal.turtle.Turtle;
 import net.minecraft.world.entity.animal.wolf.Wolf;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Ghast;
@@ -25,6 +33,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.*;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
@@ -33,19 +42,20 @@ import net.seanomik.tamablefoxes.util.Utils;
 import net.seanomik.tamablefoxes.util.io.Config;
 import net.seanomik.tamablefoxes.util.io.LanguageConfig;
 import net.seanomik.tamablefoxes.util.io.sqlite.SQLiteHelper;
-import net.seanomik.tamablefoxes.versions.version_1_21_10_R1.pathfinding.*;
+import net.seanomik.tamablefoxes.versions.version_26_1_R1.pathfinding.*;
 import net.wesjd.anvilgui.AnvilGUI;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.GameRule;
-import org.bukkit.craftbukkit.v1_21_R6.event.CraftEventFactory;
-import org.bukkit.craftbukkit.v1_21_R6.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.event.CraftEventFactory;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.event.entity.EntityRegainHealthEvent;
 
 import javax.annotation.Nullable;
 import java.lang.reflect.Field;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
 public class EntityTamableFox extends Fox {
@@ -53,8 +63,26 @@ public class EntityTamableFox extends Fox {
     //private static final EntityDataAccessor<Byte> bw; // DATA_FLAGS_ID
     private static final Predicate<Entity> AVOID_PLAYERS; // AVOID_PLAYERS
 
+    // Rate limiter for the safety-net NPE catches in finalizeSpawn / readAdditionalSaveData.
+    // Logs the first NPE_LOG_LIMIT stack traces in full so we can diagnose the source,
+    // then suppresses further occurrences to avoid spamming the server log.
+    private static final AtomicInteger NPE_LOG_COUNT = new AtomicInteger(0);
+    private static final int NPE_LOG_LIMIT = 5;
+
     static {
         AVOID_PLAYERS = (entity) -> !entity.isCrouching();// && EntitySelector.test(entity);
+    }
+
+    private static void logFoxNpeRateLimited(String where, NullPointerException e) {
+        int n = NPE_LOG_COUNT.incrementAndGet();
+        if (n <= NPE_LOG_LIMIT) {
+            Bukkit.getLogger().log(java.util.logging.Level.SEVERE,
+                "[TamableFoxes] NPE in " + where + " (occurrence " + n + "/" + NPE_LOG_LIMIT
+                    + ") — entity will continue loading/spawning. Stack trace follows for diagnosis:", e);
+        } else if (n == NPE_LOG_LIMIT + 1) {
+            Bukkit.getLogger().severe("[TamableFoxes] Further NPEs in fox load/spawn will be suppressed ("
+                + NPE_LOG_LIMIT + " stack traces logged above). Entities continue to load/spawn safely.");
+        }
     }
 
     List<Goal> untamedGoals;
@@ -80,6 +108,92 @@ public class EntityTamableFox extends Fox {
         this.setTamed(false);
     }
 
+    /**
+     * Factory method to create the land animal target goal.
+     */
+    private NearestAttackableTargetGoal<Animal> createLandTargetGoal() {
+        return new NearestAttackableTargetGoal<>(this, Animal.class, 10, false, false, (entityliving, level) -> {
+            return (!isTamed() || (Config.doesTamedAttackWildAnimals() && isTamed())) && (entityliving instanceof Chicken || entityliving instanceof Rabbit);
+        });
+    }
+
+    /**
+     * Factory method to create the turtle target goal.
+     */
+    private NearestAttackableTargetGoal<Turtle> createTurtleTargetGoal() {
+        return new NearestAttackableTargetGoal<>(this, Turtle.class, 10, false, false, Turtle.BABY_ON_LAND_SELECTOR);
+    }
+
+    /**
+     * Factory method to create the fish target goal.
+     */
+    private NearestAttackableTargetGoal<AbstractFish> createFishTargetGoal() {
+        return new NearestAttackableTargetGoal<>(this, AbstractFish.class, 20, false, false, (entityliving, level) -> {
+            return (!isTamed() || (Config.doesTamedAttackWildAnimals() && isTamed())) && entityliving instanceof AbstractSchoolingFish;
+        });
+    }
+
+    /**
+     * Ensures the Fox superclass target goal fields are initialized.
+     * These fields (landTargetGoal, turtleEggTargetGoal, fishTargetGoal) are normally
+     * set in registerGoals(), but that method only runs when the Level is a ServerLevel.
+     * When foxes are loaded from world data or spawned by plugins, these fields can be
+     * null, causing NPE in Fox.setTargetGoals().
+     *
+     * Why this uses getDeclaredFields() (plural) and not getDeclaredField(String):
+     * the Spigot-mapped 1.21.x modules need the positional scan because Paper's
+     * plugin remapper rewrites getDeclaredField(LITERAL) name strings there. 26.x
+     * has no plugin remapper (this module is Mojang-mapped, see pom.xml), so the
+     * scan is not strictly required here; it is kept so this file stays aligned
+     * with 1_21_R10, and because matching by type instead of by name is immune to
+     * future field renames.
+     */
+    private void ensureTargetGoalFields() {
+        if (populateTargetGoalFieldsByScan()) return;
+        Bukkit.getLogger().severe("[TamableFoxes] Could not initialize Fox target goal fields — fox entities will NPE on load/spawn");
+    }
+
+    /**
+     * Scans Fox.class.getDeclaredFields() for the three Goal-typed fields and
+     * populates any that are null (see ensureTargetGoalFields for why a positional
+     * scan is used instead of field-name lookups).
+     *
+     * Fox declares exactly three Goal-typed fields in this order: landTargetGoal,
+     * turtleEggTargetGoal, fishTargetGoal. No other Goal-typed fields exist on Fox,
+     * so the positional scan is stable across Paper builds for the same Mojang version.
+     */
+    private boolean populateTargetGoalFieldsByScan() {
+        List<Field> goalFields = new ArrayList<>(3);
+        for (Field f : Fox.class.getDeclaredFields()) {
+            if (Goal.class.isAssignableFrom(f.getType())) {
+                f.setAccessible(true);
+                goalFields.add(f);
+                if (goalFields.size() == 3) break;
+            }
+        }
+        if (goalFields.size() < 3) {
+            return false;
+        }
+        try {
+            // Initialize each field independently — never short-circuit on a single
+            // non-null field. registerGoals() can leave a partial state and assuming
+            // "all or nothing" here is what caused Fox.setTargetGoals() to NPE later.
+            if (goalFields.get(0).get(this) == null) {
+                goalFields.get(0).set(this, createLandTargetGoal());
+            }
+            if (goalFields.get(1).get(this) == null) {
+                goalFields.get(1).set(this, createTurtleTargetGoal());
+            }
+            if (goalFields.get(2).get(this) == null) {
+                goalFields.get(2).set(this, createFishTargetGoal());
+            }
+            return true;
+        } catch (ReflectiveOperationException e) {
+            Bukkit.getLogger().warning("[TamableFoxes] Reflection error populating target goal fields by scan: " + e.getMessage());
+            return false;
+        }
+    }
+
     @Override
     public void registerGoals() {
         try {
@@ -88,25 +202,10 @@ public class EntityTamableFox extends Fox {
             this.goalSleepWhenOrdered = new FoxPathfinderGoalSleepWhenOrdered(this);
             this.goalSelector.addGoal(1, goalSleepWhenOrdered);
 
-            // For reflection, we must use the non remapped names, since this is done at runtime
-            // and the user will be using a normal spigot jar.
-
-            // Wild animal attacking
-            Field landTargetGoal = this.getClass().getSuperclass().getDeclaredField("landTargetGoal"); // landTargetGoal
-            landTargetGoal.setAccessible(true);
-            landTargetGoal.set(this, new NearestAttackableTargetGoal(this, Animal.class, 10, false, false, (entityliving, level) -> {
-                return (!isTamed() || (Config.doesTamedAttackWildAnimals() && isTamed())) && (entityliving instanceof Chicken || entityliving instanceof Rabbit);
-            }));
-
-            Field turtleEggTargetGoal = this.getClass().getSuperclass().getDeclaredField("turtleEggTargetGoal"); // turtleEggTargetGoal
-            turtleEggTargetGoal.setAccessible(true);
-            turtleEggTargetGoal.set(this, new NearestAttackableTargetGoal(this, Turtle.class, 10, false, false, Turtle.BABY_ON_LAND_SELECTOR));
-
-            Field fishTargetGoal = this.getClass().getSuperclass().getDeclaredField("fishTargetGoal"); // fishTargetGoal
-            fishTargetGoal.setAccessible(true);
-            fishTargetGoal.set(this, new NearestAttackableTargetGoal(this, AbstractFish.class, 20, false, false, (entityliving, level) -> {
-                return (!isTamed() || (Config.doesTamedAttackWildAnimals() && isTamed())) && entityliving instanceof AbstractSchoolingFish;
-            }));
+            // Populate the Fox superclass target goal fields via the scan-based helper
+            // (see populateTargetGoalFieldsByScan — 26.x has no plugin remapper; the
+            // positional scan is kept for parity with the Spigot-mapped 1.21 modules).
+            populateTargetGoalFieldsByScan();
 
             this.goalSelector.addGoal(0, getFoxInnerPathfinderGoal("FoxFloatGoal"));
             this.goalSelector.addGoal(1, getFoxInnerPathfinderGoal("FaceplantGoal"));
@@ -114,13 +213,13 @@ public class EntityTamableFox extends Fox {
             this.goalSelector.addGoal(2, new FoxPathfinderGoalSleepWithOwner(this));
             this.goalSelector.addGoal(3, getFoxInnerPathfinderGoal("FoxBreedGoal", Arrays.asList(1.0D), Arrays.asList(double.class)));
 
-            this.goalSelector.addGoal(4, new AvoidEntityGoal(this, Player.class, 16.0F, 1.6D, 1.4D, (entityliving) -> {
+            this.goalSelector.addGoal(4, new AvoidEntityGoal<>(this, Player.class, 16.0F, 1.6D, 1.4D, (entityliving) -> {
                 return !isTamed() && AVOID_PLAYERS.test((LivingEntity) entityliving) && !this.isDefending();
             }));
-            this.goalSelector.addGoal(4, new AvoidEntityGoal(this, Wolf.class, 8.0F, 1.6D, 1.4D, (entityliving) -> {
+            this.goalSelector.addGoal(4, new AvoidEntityGoal<>(this, Wolf.class, 8.0F, 1.6D, 1.4D, (entityliving) -> {
                 return !((Wolf)entityliving).isTame() && !this.isDefending();
             }));
-            this.goalSelector.addGoal(4, new AvoidEntityGoal(this, PolarBear.class, 8.0F, 1.6D, 1.4D, (entityliving) -> {
+            this.goalSelector.addGoal(4, new AvoidEntityGoal<>(this, PolarBear.class, 8.0F, 1.6D, 1.4D, (entityliving) -> {
                 return !this.isDefending();
             }));
 
@@ -162,6 +261,7 @@ public class EntityTamableFox extends Fox {
             this.goalSelector.addGoal(9, strollThroughVillage);
             untamedGoals.add(strollThroughVillage);
         } catch (Exception e) {
+            Bukkit.getLogger().severe("[TamableFoxes] Failed to register goals for EntityTamableFox: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -230,8 +330,31 @@ public class EntityTamableFox extends Fox {
     }
 
     @Override
+    public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty, EntitySpawnReason reason, @Nullable SpawnGroupData spawnGroupData) {
+        ensureTargetGoalFields();
+        try {
+            return super.finalizeSpawn(level, difficulty, reason, spawnGroupData);
+        } catch (NullPointerException e) {
+            // Safety net: if Fox.setTargetGoals() still NPEs despite our field init,
+            // log it but don't propagate the NPE. Otherwise the spawn-egg / spawner /
+            // mob spawning packet handler aborts and the player's action fails.
+            logFoxNpeRateLimited("Fox.finalizeSpawn", e);
+            return spawnGroupData;
+        }
+    }
+
+    @Override
     protected void readAdditionalSaveData(ValueInput valueinput) {
-        super.readAdditionalSaveData(valueinput);
+        ensureTargetGoalFields();
+        try {
+            super.readAdditionalSaveData(valueinput);
+        } catch (NullPointerException e) {
+            // Safety net: if Fox.setTargetGoals() still NPEs despite our field init
+            // (e.g., due to an unmapped field name), log it but don't crash entity loading.
+            // The fox type, trusted UUIDs, etc. are loaded before setTargetGoals() is called,
+            // so the entity data is still intact.
+            logFoxNpeRateLimited("Fox.readAdditionalSaveData", e);
+        }
         UUID ownerUuid = null;
 
         // FOX: addAdditionalSaveData writes "ownerUUID", but this was read back as
@@ -281,8 +404,12 @@ public class EntityTamableFox extends Fox {
         }
 
         if (!this.isTamed()) {
-            goalSitWhenOrdered.setOrderedToSit(false);
-            goalSleepWhenOrdered.setOrderedToSleep(false);
+            if (this.goalSitWhenOrdered != null) {
+                this.goalSitWhenOrdered.setOrderedToSit(false);
+            }
+            if (this.goalSleepWhenOrdered != null) {
+                this.goalSleepWhenOrdered.setOrderedToSleep(false);
+            }
         }
     }
 
@@ -410,7 +537,7 @@ public class EntityTamableFox extends Fox {
 
                     // Run this a tick later because the item is removed as soon as it is
                     // put in the fox's mouth. It must stay on the main thread: it reads the
-                    // player's hand and mutates live ItemStacks/equipment. // FOX: was async
+                    // player's hand and mutates live ItemStacks/equipment.
                     Bukkit.getScheduler().runTaskLater(Utils.getTamableFoxesPlugin(), ()-> {
                         // Put item in mouth
                         if (entityhuman.hasItemInSlot(EquipmentSlot.MAINHAND)) {

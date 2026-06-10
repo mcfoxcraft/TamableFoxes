@@ -95,7 +95,10 @@ public class SQLiteHelper {
         sqLiteHandler = SQLiteHandler.getInstance();
 
         try {
-            String query = "UPDATE " + userAmountTableName + " SET AMOUNT = AMOUNT - " + amt + " WHERE UUID = '" + uuid.toString() + "'";
+            // FOX: floor at 0 — bred offspring are tamed without being counted, so an
+            // unfloored decrement on their death could push the count negative and
+            // let players exceed max-fox-tames.
+            String query = "UPDATE " + userAmountTableName + " SET AMOUNT = MAX(AMOUNT - " + amt + ", 0) WHERE UUID = '" + uuid.toString() + "'";
 
             sqLiteHandler.connect(plugin);
             try (PreparedStatement statement = sqLiteHandler.getConnection().prepareStatement(query)) {
