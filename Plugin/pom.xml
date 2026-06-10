@@ -36,6 +36,21 @@
                         <configuration>
                             <outputFile>target/TamableFoxes-v${project.parent.version}.jar</outputFile>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <filters>
+                                <!-- FOX: upstream builds Wrapper26_R1 at Java 25 (class-file v69).
+                                     Paper <= 1.21.4's plugin remapper (older ASM) aborts on any v69
+                                     entry, which would make the whole multi-version jar fail to load
+                                     there. A copy compiled at release 21 is vendored in the 26_1_R1
+                                     module (net.wesjd.anvilgui.version.Wrapper26_R1), so the v69
+                                     originals must stay out of the shaded jar. -->
+                                <filter>
+                                    <artifact>net.wesjd:anvilgui</artifact>
+                                    <excludes>
+                                        <exclude>net/wesjd/anvilgui/version/Wrapper26_R1.class</exclude>
+                                        <exclude>net/wesjd/anvilgui/version/Wrapper26_R1$*.class</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
                         </configuration>
                     </execution>
                 </executions>

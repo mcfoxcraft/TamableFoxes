@@ -141,13 +141,12 @@ public class EntityTamableFox extends Fox {
      * null, causing NPE in Fox.setTargetGoals().
      *
      * Why this uses getDeclaredFields() (plural) and not getDeclaredField(String):
-     * Paper's plugin remapper intercepts the getDeclaredField(LITERAL) pattern for
-     * Spigot-mapped plugins (api-version < 1.20.5) and rewrites the literal string
-     * to a Spigot-mapped name. Since "landTargetGoal" already IS the Mojang name, the
-     * remapper either silently leaves it unchanged or — observed on prod — substitutes
-     * something that resolves to a different field, causing the actual landTargetGoal
-     * to remain null. getDeclaredFields() (plural) takes no string argument and is not
-     * intercepted, so the field objects we get back point to the real runtime fields.
+     * the Spigot-mapped 1.21.x modules need the positional scan because Paper's
+     * plugin remapper rewrites getDeclaredField(LITERAL) name strings there. 26.x
+     * has no plugin remapper (this module is Mojang-mapped, see pom.xml), so the
+     * scan is not strictly required here; it is kept so this file stays aligned
+     * with 1_21_R10, and because matching by type instead of by name is immune to
+     * future field renames.
      */
     private void ensureTargetGoalFields() {
         if (populateTargetGoalFieldsByScan()) return;
@@ -155,8 +154,9 @@ public class EntityTamableFox extends Fox {
     }
 
     /**
-     * Scans Fox.class.getDeclaredFields() (plural — bypasses Paper's plugin remapper)
-     * for the three Goal-typed fields and populates any that are null.
+     * Scans Fox.class.getDeclaredFields() for the three Goal-typed fields and
+     * populates any that are null (see ensureTargetGoalFields for why a positional
+     * scan is used instead of field-name lookups).
      *
      * Fox declares exactly three Goal-typed fields in this order: landTargetGoal,
      * turtleEggTargetGoal, fishTargetGoal. No other Goal-typed fields exist on Fox,
@@ -202,12 +202,9 @@ public class EntityTamableFox extends Fox {
             this.goalSleepWhenOrdered = new FoxPathfinderGoalSleepWhenOrdered(this);
             this.goalSelector.addGoal(1, goalSleepWhenOrdered);
 
-            // Populate the Fox superclass target goal fields via the scan-based helper.
-            // We do NOT use Fox.class.getDeclaredField("landTargetGoal") here because
-            // Paper's plugin remapper (active for api-version < 1.20.5 plugins) intercepts
-            // the getDeclaredField(LITERAL) pattern and rewrites the field name string,
-            // leaving the actual fields null. populateTargetGoalFieldsByScan() uses
-            // getDeclaredFields() (plural) which is not intercepted.
+            // Populate the Fox superclass target goal fields via the scan-based helper
+            // (see populateTargetGoalFieldsByScan — 26.x has no plugin remapper; the
+            // positional scan is kept for parity with the Spigot-mapped 1.21 modules).
             populateTargetGoalFieldsByScan();
 
             this.goalSelector.addGoal(0, getFoxInnerPathfinderGoal("FoxFloatGoal"));
@@ -230,7 +227,6 @@ public class EntityTamableFox extends Fox {
             this.goalSelector.addGoal(6, new FoxPounceGoal());
             this.goalSelector.addGoal(7, getFoxInnerPathfinderGoal("FoxMeleeAttackGoal", Arrays.asList(1.2000000476837158D, true), Arrays.asList(double.class, boolean.class)));
             this.goalSelector.addGoal(8, getFoxInnerPathfinderGoal("FoxFollowParentGoal", Arrays.asList(1.25D), Arrays.asList(double.class)));
-            this.goalSelector.addGoal(8, new FoxPathfinderGoalSleepWithOwner(this));
             this.goalSelector.addGoal(9, new FoxPathfinderGoalFollowOwner(this, 1.3D, 10.0F, 2.0F, false));
             this.goalSelector.addGoal(10, new LeapAtTargetGoal(this, 0.4F));
             this.goalSelector.addGoal(11, new RandomStrollGoal(this, 1.0D));
@@ -325,6 +321,9 @@ public class EntityTamableFox extends Fox {
         } else {
             NMSUtil.putUUID(valueoutput, "ownerUUID", this.getOwnerUUID());
         }
+        // FOX: explicit tamed marker, so the read path never has to infer tamed state
+        // from owner presence for data written by current code.
+        valueoutput.putBoolean("FoxTamed", this.getOwnerUUID() != null && this.isTamed());
 
         valueoutput.putBoolean("Sitting", this.goalSitWhenOrdered.isOrderedToSit());
         valueoutput.putBoolean("Sleeping", this.goalSleepWhenOrdered.isOrderedToSleep());
@@ -375,7 +374,13 @@ public class EntityTamableFox extends Fox {
             }
         }
 
-        if (ownerUuid != null && !ownerUuid.equals(new UUID(0, 0))) {
+        // FOX: "FoxTamed" is the explicit marker written by current saves. Legacy data
+        // lacks it and wrote ownerUUID unconditionally — vanilla fills the backing
+        // DATA_TRUSTED_ID_0 for wild foxes that merely *trust* a player — so for
+        // legacy data a non-zero owner remains the best available signal and can
+        // wrongly promote a wild trusting fox once; its next save records the real state.
+        if (valueinput.getBooleanOr("FoxTamed", true)
+                && ownerUuid != null && !ownerUuid.equals(new UUID(0, 0))) {
             this.setOwnerUUID(ownerUuid);
             this.setTamed(true);
         } else {
@@ -524,7 +529,7 @@ public class EntityTamableFox extends Fox {
 
                     // Run this a tick later because the item is removed as soon as it is
                     // put in the fox's mouth. It must stay on the main thread: it reads the
-                    // player's hand and mutates live ItemStacks/equipment. // FOX: was async
+                    // player's hand and mutates live ItemStacks/equipment.
                     Bukkit.getScheduler().runTaskLater(Utils.getTamableFoxesPlugin(), ()-> {
                         // Put item in mouth
                         if (entityhuman.hasItemInSlot(EquipmentSlot.MAINHAND)) {

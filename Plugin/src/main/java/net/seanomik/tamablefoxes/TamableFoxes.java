@@ -82,26 +82,19 @@ public final class TamableFoxes extends JavaPlugin implements Listener {
             case "1.21.11" -> nmsInterface = new NMSInterface_1_21_11_R1();
             // FOX: Paper/Spigot 26.x are Mojang-mapped with an unversioned craftbukkit
             // package, so 26.1.2 needs its own (non-remapped) module. It is loaded via
-            // reflection because its classes target Java 25 (class-file 69) while the
-            // rest of the plugin stays on Java 21 for the older servers.
+            // reflection so older servers never resolve the module's classes and a
+            // load failure (including LinkageError) disables the plugin cleanly.
             case "26.1.2" -> nmsInterface = loadNMSInterfaceByName("net.seanomik.tamablefoxes.versions.version_26_1_R1.NMSInterface_26_1_R1");
 
-            default -> {
-                Bukkit.getServer().getConsoleSender().sendMessage(Config.getPrefix() + ChatColor.RED + LanguageConfig.getUnsupportedMCVersionRegister());
-                Bukkit.getServer().getConsoleSender().sendMessage(Config.getPrefix() + ChatColor.RED + "You're trying to run MC version " + Bukkit.getMinecraftVersion() + " which is not supported!");
-                Bukkit.getServer().getConsoleSender().sendMessage(Config.getPrefix() + "Disabling plugin...");
-                versionSupported = false;
-
-                Bukkit.getPluginManager().disablePlugin(this);
-            }
+            default -> abortLoad(LanguageConfig.getUnsupportedMCVersionRegister(),
+                    "You're trying to run MC version " + Bukkit.getMinecraftVersion() + " which is not supported!");
         }
 
-        // FOX: a reflection-loaded interface can fail to load; treat that like an
-        // unsupported version instead of continuing with a null interface.
+        // FOX: a reflection-loaded interface can fail to load even on a supported
+        // version; the cause was already printed by loadNMSInterfaceByName, so don't
+        // claim the MC version is unsupported.
         if (versionSupported && nmsInterface == null) {
-            Bukkit.getServer().getConsoleSender().sendMessage(Config.getPrefix() + ChatColor.RED + LanguageConfig.getUnsupportedMCVersionRegister());
-            Bukkit.getServer().getConsoleSender().sendMessage(Config.getPrefix() + "Disabling plugin...");
-            versionSupported = false;
+            abortLoad("Failed to load NMS support for MC " + Bukkit.getMinecraftVersion() + ".");
         }
 
         if (versionSupported) {
@@ -117,8 +110,7 @@ public final class TamableFoxes extends JavaPlugin implements Listener {
                 // an uncaught Error here would leave versionSupported=true and onEnable
                 // would still run half-enabled.
                 e.printStackTrace();
-                Bukkit.getServer().getConsoleSender().sendMessage(Config.getPrefix() + "Disabling plugin...");
-                versionSupported = false;
+                abortLoad("Failed to register the custom fox entity for MC " + Bukkit.getMinecraftVersion() + ".");
                 return;
             }
 
@@ -128,9 +120,21 @@ public final class TamableFoxes extends JavaPlugin implements Listener {
         }
     }
 
-    // FOX: used for NMS modules whose classes target a newer Java release than the
-    // plugin itself (e.g. 26_1_R1 -> Java 25); a direct "new" reference would make
-    // javac read the newer class file at compile time. Returns null when loading fails.
+    // FOX: shared failure path for onLoad. Only flips versionSupported — the actual
+    // disable happens in onEnable, since a plugin cannot be disabled before it has
+    // been enabled (PluginManager#disablePlugin is a no-op during onLoad).
+    private void abortLoad(String... reasonLines) {
+        for (String line : reasonLines) {
+            Bukkit.getServer().getConsoleSender().sendMessage(Config.getPrefix() + ChatColor.RED + line);
+        }
+        Bukkit.getServer().getConsoleSender().sendMessage(Config.getPrefix() + "Disabling plugin...");
+        versionSupported = false;
+    }
+
+    // FOX: loads an NMS module by name so its classes are only resolved on the matching
+    // server version, and so any load failure (including LinkageError, e.g. a missing
+    // or incompatible server class) is caught here instead of escaping onLoad.
+    // Returns null when loading fails.
     private NMSInterface loadNMSInterfaceByName(String className) {
         try {
             return (NMSInterface) Class.forName(className).getDeclaredConstructor().newInstance();

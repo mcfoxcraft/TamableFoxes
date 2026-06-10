@@ -151,7 +151,6 @@ public class EntityTamableFox extends Fox {
             this.goalSelector.addGoal(6, new FoxPounceGoal());
             this.goalSelector.addGoal(7, getFoxInnerPathfinderGoal("FoxMeleeAttackGoal", Arrays.asList(1.2000000476837158D, true), Arrays.asList(double.class, boolean.class)));
             this.goalSelector.addGoal(8, getFoxInnerPathfinderGoal("FoxFollowParentGoal", Arrays.asList(1.25D), Arrays.asList(double.class)));
-            this.goalSelector.addGoal(8, new FoxPathfinderGoalSleepWithOwner(this));
             this.goalSelector.addGoal(9, new FoxPathfinderGoalFollowOwner(this, 1.3D, 10.0F, 2.0F, false));
             this.goalSelector.addGoal(10, new LeapAtTargetGoal(this, 0.4F));
             this.goalSelector.addGoal(11, new RandomStrollGoal(this, 1.0D));
@@ -245,6 +244,9 @@ public class EntityTamableFox extends Fox {
         } else {
             NMSUtil.putUUID(valueoutput, "ownerUUID", this.getOwnerUUID());
         }
+        // FOX: explicit tamed marker, so the read path never has to infer tamed state
+        // from owner presence for data written by current code.
+        valueoutput.putBoolean("FoxTamed", this.getOwnerUUID() != null && this.isTamed());
 
         valueoutput.putBoolean("Sitting", this.goalSitWhenOrdered.isOrderedToSit());
         valueoutput.putBoolean("Sleeping", this.goalSleepWhenOrdered.isOrderedToSleep());
@@ -272,7 +274,13 @@ public class EntityTamableFox extends Fox {
             }
         }
 
-        if (ownerUuid != null && !ownerUuid.equals(new UUID(0, 0))) {
+        // FOX: "FoxTamed" is the explicit marker written by current saves. Legacy data
+        // lacks it and wrote ownerUUID unconditionally — vanilla fills the backing
+        // DATA_TRUSTED_ID_0 for wild foxes that merely *trust* a player — so for
+        // legacy data a non-zero owner remains the best available signal and can
+        // wrongly promote a wild trusting fox once; its next save records the real state.
+        if (valueinput.getBooleanOr("FoxTamed", true)
+                && ownerUuid != null && !ownerUuid.equals(new UUID(0, 0))) {
             this.setOwnerUUID(ownerUuid);
             this.setTamed(true);
         } else {

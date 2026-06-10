@@ -12,9 +12,12 @@
 
     <!-- FOX: Spigot/Paper 26.x run Mojang mappings with an unversioned craftbukkit
          package and no plugin remapper, so unlike the older modules this one is NOT
-         remapped with specialsource and needs a JDK 25 build (server classes are
-         class-file version 69). Requires the BuildTools artifact for rev 26.1.2
-         in the local repository (see compileSpigotVersions.sh). -->
+         remapped with specialsource. The BUILD needs JDK 25 (javac must be able to
+         read the class-file v69 server jar), but the module emits Java 21 bytecode
+         (release 21): Paper <= 1.21.4 runs its plugin remapper over the whole shaded
+         jar, and its bundled ASM rejects v69 entries, which would stop the
+         multi-version jar from loading there at all. Requires the BuildTools artifact
+         for rev 26.1.2 in the local repository (see compileSpigotVersions.sh). -->
     <build>
         <plugins>
             <plugin>
@@ -22,7 +25,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.1</version>
                 <configuration>
-                    <release>25</release>
+                    <release>21</release>
                     <compilerArgs>
                         <arg>-parameters</arg>
                     </compilerArgs>

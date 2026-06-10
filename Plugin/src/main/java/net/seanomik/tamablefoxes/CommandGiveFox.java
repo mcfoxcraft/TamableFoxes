@@ -86,21 +86,24 @@ public class CommandGiveFox implements TabExecutor {
                         sender.sendMessage("§cNo fox selected.");
                         return;
                     }
-                    if (player.getUniqueId().equals(plugin.nmsInterface.getFoxOwner(fox)) ||
-                            player.hasPermission("tamablefoxes.givefox.give.others")) {
-                        plugin.nmsInterface.changeFoxOwner(fox, givingToPlayer);
+                    // FOX: only the wait for the player's click belongs on this async
+                    // thread. getFoxOwner/changeFoxOwner read and write live entity
+                    // data (SynchedEntityData), which is main-thread only.
+                    Bukkit.getScheduler().runTask(plugin, r2 -> {
+                        if (player.getUniqueId().equals(plugin.nmsInterface.getFoxOwner(fox)) ||
+                                player.hasPermission("tamablefoxes.givefox.give.others")) {
+                            plugin.nmsInterface.changeFoxOwner(fox, givingToPlayer);
 
-                        Bukkit.getScheduler().runTask(plugin, r2 -> {
                             // If the player that is receiving the fox is online, prompt them to rename their new fox!
                             if (givingToPlayer.isOnline()) {
                                 plugin.nmsInterface.renameFox(fox, givingToPlayer);
                             }
-                        });
 
-                        sender.sendMessage(Config.getPrefix() + ChatColor.GREEN + LanguageConfig.getGaveFox(givingToPlayer));
-                    } else {
-                        sender.sendMessage(Config.getPrefix() + ChatColor.RED + LanguageConfig.getNotYourFox());
-                    }
+                            sender.sendMessage(Config.getPrefix() + ChatColor.GREEN + LanguageConfig.getGaveFox(givingToPlayer));
+                        } else {
+                            sender.sendMessage(Config.getPrefix() + ChatColor.RED + LanguageConfig.getNotYourFox());
+                        }
+                    });
                 } catch (InterruptedException e) {
                     playerInteractListener.players.remove(player.getUniqueId());
                     sender.sendMessage(Config.getPrefix() + ChatColor.RED + LanguageConfig.getTooLongInteraction());
