@@ -109,9 +109,13 @@ public final class TamableFoxes extends JavaPlugin implements Listener {
             Bukkit.getServer().getConsoleSender().sendMessage(Config.getPrefix() + ChatColor.YELLOW + LanguageConfig.getMCVersionLoading(Bukkit.getMinecraftVersion()));
             try {
                 nmsInterface.registerCustomFoxEntity();
-            } catch (Exception e) {
+            } catch (Exception | LinkageError e) {
                 // FOX: newer interfaces rethrow on registration failure so the plugin
                 // disables cleanly instead of running half-enabled with vanilla foxes.
+                // LinkageError is included because the module's entity classes are first
+                // loaded inside this call (e.g. the EntityTamableFox::new factory ref);
+                // an uncaught Error here would leave versionSupported=true and onEnable
+                // would still run half-enabled.
                 e.printStackTrace();
                 Bukkit.getServer().getConsoleSender().sendMessage(Config.getPrefix() + "Disabling plugin...");
                 versionSupported = false;
