@@ -1,6 +1,6 @@
 mc-version-loading: "Registering entity for MC Version %MC_VERSION%..."
-unsupported-mc-version-not-registering: "ERROR: This plugin version only supports Spigot 1.14-1.18.1! Not registering entity!"
-unsupported-mc-version-disabling: "This plugin version only supports Spigot 1.14-1.18.1! Disabling plugin!"
+unsupported-mc-version-not-registering: "ERROR: This plugin version does not support this server version! Not registering entity!"
+unsupported-mc-version-disabling: "This plugin version does not support this server version! Disabling plugin!"
 success-replaced-entity: "Replaced tamable fox entity!"
 error-to-replaced-entity: "Failed to replace tamable fox entity!"
 saving-foxes-message: "Saving foxes."
