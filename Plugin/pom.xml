@@ -21,6 +21,24 @@
     </properties>
 
     <build>
+        <!-- FOX: expand ${project.version} in plugin.yml; without filtering the token
+             ships verbatim and the server logs "Tamablefoxes v${project.version}". -->
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>plugin.yml</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>plugin.yml</exclude>
+                </excludes>
+            </resource>
+        </resources>
         <plugins>
             <!-- Shade plugin configuration inchangée -->
             <plugin>
@@ -259,6 +277,12 @@
         <dependency>
             <groupId>net.seanomik</groupId>
             <artifactId>tamablefoxes_v26_1_R1</artifactId>
+            <version>${project.parent.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.seanomik</groupId>
+            <artifactId>tamablefoxes_v26_2_R1</artifactId>
             <version>${project.parent.version}</version>
             <scope>compile</scope>
         </dependency>
