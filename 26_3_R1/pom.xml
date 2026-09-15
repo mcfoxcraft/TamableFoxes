@@ -10,8 +10,10 @@
         <version>2.3.2-FOX</version>
     </parent>
 
-    <!-- FOX: copy of 26_2_R1 for Spigot/Paper 26.3 (the only source change is in
-         FoxPathfinderGoalSleepWithOwner: 26.3 removed the BlockPos(Vec3i) constructor).
+    <!-- FOX: copy of 26_2_R1 for Spigot/Paper 26.3. Two source changes:
+         FoxPathfinderGoalSleepWithOwner (26.3 removed the BlockPos(Vec3i) constructor) and
+         EntityTamableFox (26.3 removed CraftItemStack.asBukkitCopy(net.minecraft ItemStack), so the
+         mouth-item drop now copies it via getEquipment().getItemInMainHand()).
          Same build constraints as 26_1_R1:
          Mojang-mapped, unversioned craftbukkit, no specialsource remap, JDK 25 build
          emitting release 21 bytecode. Requires the BuildTools artifact for rev 26.3 in
