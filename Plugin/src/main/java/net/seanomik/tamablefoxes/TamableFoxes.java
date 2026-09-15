@@ -82,8 +82,8 @@ public final class TamableFoxes extends JavaPlugin implements Listener {
             case "1.21.11" -> nmsInterface = new NMSInterface_1_21_11_R1();
 
             // FOX: Paper/Spigot 26.x are Mojang-mapped with an unversioned craftbukkit
-            // package, so each 26.x patch family (shared NMS revision: 26_1_R1, 26_2_R1)
-            // uses its own (non-remapped) module. Routing by prefix instead of a single
+            // package, so each 26.x patch family (shared NMS revision: 26_1_R1, 26_2_R1,
+            // 26_3_R1) uses its own (non-remapped) module. Routing by prefix instead of a single
             // pinned string means a routine Paper patch bump (26.1.3, 26.2.1, ...) doesn't
             // disable foxes on a version it's actually compatible with. The modules are
             // loaded via reflection so other servers never resolve their classes; if a
@@ -95,6 +95,8 @@ public final class TamableFoxes extends JavaPlugin implements Listener {
                     nmsInterface = loadNMSInterfaceByName("net.seanomik.tamablefoxes.versions.version_26_1_R1.NMSInterface_26_1_R1");
                 } else if (mcVersion.equals("26.2") || mcVersion.startsWith("26.2.")) {
                     nmsInterface = loadNMSInterfaceByName("net.seanomik.tamablefoxes.versions.version_26_2_R1.NMSInterface_26_2_R1");
+                } else if (mcVersion.equals("26.3") || mcVersion.startsWith("26.3.")) {
+                    nmsInterface = loadNMSInterfaceByName("net.seanomik.tamablefoxes.versions.version_26_3_R1.NMSInterface_26_3_R1");
                 } else {
                     abortLoad(LanguageConfig.getUnsupportedMCVersionRegister(),
                             "You're trying to run MC version " + mcVersion + " which is not supported!");
